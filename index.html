@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一維隨機遊走蒙特卡羅模擬器 (Random Walk Simulation)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-indigo-600 rounded-lg text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-900">1D 隨機遊走蒙特卡羅模擬器</h1>
+                    <p class="text-xs text-slate-500">Interactive Monte Carlo Random Walk Simulation</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button id="runSimBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-lg shadow transition duration-150 flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>執行模擬</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Controls Sidebar -->
+        <div class="lg:col-span-4 space-y-6">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-5">
+                <h2 class="text-lg font-bold text-slate-800 border-b pb-3 border-slate-100 flex items-center justify-between">
+                    <span>參數設定</span>
+                    <span class="text-xs font-normal text-slate-400">Parameter Controls</span>
+                </h2>
+
+                <!-- Control: Steps -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center text-sm">
+                        <label for="stepsNum" class="font-medium text-slate-700">總步數 (N)</label>
+                        <input type="number" id="stepsNum" min="10" max="1000" step="1" value="200"
+                            class="w-24 text-right px-2 py-1 font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <input type="range" id="steps" min="10" max="1000" step="10" value="200" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>10</span>
+                        <span>1000</span>
+                    </div>
+                </div>
+
+                <!-- Control: Simulations Count -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center text-sm">
+                        <label for="simsNum" class="font-medium text-slate-700">模擬路徑數 (M)</label>
+                        <input type="number" id="simsNum" min="10" max="500" step="1" value="50"
+                            class="w-24 text-right px-2 py-1 font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <input type="range" id="sims" min="10" max="500" step="10" value="50" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>10</span>
+                        <span>500</span>
+                    </div>
+                </div>
+
+                <!-- Control: Right Probability -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center text-sm">
+                        <label for="probNum" class="font-medium text-slate-700">向右機率 (p)</label>
+                        <input type="number" id="probNum" min="0.01" max="0.99" step="0.01" value="0.50"
+                            class="w-24 text-right px-2 py-1 font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <input type="range" id="prob" min="0.01" max="0.99" step="0.01" value="0.50" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>0.01</span>
+                        <span>0.99</span>
+                    </div>
+                </div>
+
+                <!-- Control: Step Size -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center text-sm">
+                        <label for="stepSizeNum" class="font-medium text-slate-700">每步長度 (Step Size)</label>
+                        <input type="number" id="stepSizeNum" min="0.1" max="10" step="0.1" value="1.0"
+                            class="w-24 text-right px-2 py-1 font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <input type="range" id="stepSize" min="0.1" max="10" step="0.1" value="1.0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>0.1</span>
+                        <span>10.0</span>
+                    </div>
+                </div>
+
+                <!-- Control: Target Position -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center text-sm">
+                        <label for="targetNum" class="font-medium text-slate-700">目標位置 (Target)</label>
+                        <input type="number" id="targetNum" min="-200" max="200" step="1" value="20"
+                            class="w-24 text-right px-2 py-1 font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <input type="range" id="target" min="-200" max="200" step="1" value="20" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span id="targetMinLbl">-200</span>
+                        <span id="targetMaxLbl">200</span>
+                    </div>
+                </div>
+
+                <!-- Control: Animation Speed -->
+                <div class="space-y-1.5 border-t border-slate-100 pt-3">
+                    <div class="flex justify-between items-center text-sm">
+                        <label for="speedNum" class="font-medium text-slate-700">動畫每格延遲 (ms)</label>
+                        <input type="number" id="speedNum" min="0" max="200" step="5" value="10"
+                            class="w-24 text-right px-2 py-1 font-semibold text-slate-700 bg-slate-100 border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-slate-400">
+                    </div>
+                    <input type="range" id="speed" min="0" max="200" step="5" value="10" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-600">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>0 (最快)</span>
+                        <span>200 ms</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Stats Summary -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">當前實驗統計分析</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                        <div class="text-xs text-slate-500">終點平均值</div>
+                        <div id="statMean" class="text-lg font-bold text-slate-800">0.00</div>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                        <div class="text-xs text-slate-500">理論期望值</div>
+                        <div id="statTheoretical" class="text-lg font-bold text-slate-800">0.00</div>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                        <div class="text-xs text-slate-500">樣本變異數</div>
+                        <div id="statVar" class="text-lg font-bold text-slate-800">0.00</div>
+                    </div>
+                    <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+                        <div class="text-xs text-emerald-700">目標到達比例</div>
+                        <div id="statReach" class="text-lg font-bold text-emerald-600">0.0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chart & History -->
+        <div class="lg:col-span-8 space-y-6">
+            <!-- Chart Container -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <div class="flex flex-wrap justify-between items-center border-b border-slate-100 pb-3 gap-2">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">隨機遊走軌跡圖 (Trajectories)</h2>
+                        <div class="flex items-center space-x-4 mt-1 text-xs">
+                            <span class="flex items-center"><span class="w-3 h-1 bg-blue-500 inline-block mr-1 rounded"></span>樣本軌跡 (藍色)</span>
+                            <span class="flex items-center"><span class="w-3 h-1 bg-amber-500 inline-block mr-1 rounded"></span>平均路徑 (加粗橘線)</span>
+                            <span class="flex items-center"><span class="w-3 h-1 border-t-2 border-dashed border-emerald-400 inline-block mr-1"></span>目標位置</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="downloadChartBtn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-1.5 px-3 rounded-md transition duration-150 border border-slate-300 flex items-center space-x-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <span>下載圖示 (PNG)</span>
+                        </button>
+                        <button id="downloadPathsCsvBtn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-1.5 px-3 rounded-md transition duration-150 border border-slate-300 flex items-center space-x-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span>下載路徑數據 (CSV)</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="relative h-80 w-full bg-white rounded-lg">
+                    <canvas id="simChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Experiment History Comparison Table -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex flex-wrap justify-between items-center border-b border-slate-100 pb-3 gap-2">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">歷史實驗比較紀錄</h2>
+                        <p class="text-xs text-slate-500">Session Experiment Comparison Logs</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="downloadHistoryCsvBtn" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-1.5 px-3 rounded-md transition duration-150 border border-indigo-200 flex items-center space-x-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            <span>下載紀錄 (CSV)</span>
+                        </button>
+                        <button id="downloadHistoryJsonBtn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-1.5 px-3 rounded-md transition duration-150 border border-slate-300 flex items-center space-x-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <span>JSON</span>
+                        </button>
+                        <button id="clearHistoryBtn" class="text-xs bg-red-50 hover:bg-red-100 text-red-600 font-medium py-1.5 px-3 rounded-md transition duration-150 border border-red-200 flex items-center space-x-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            <span>清除紀錄</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-sm text-left text-slate-600">
+                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th scope="col" class="py-2.5 px-3">#</th>
+                                <th scope="col" class="py-2.5 px-3">參數 (N, M, p, Step)</th>
+                                <th scope="col" class="py-2.5 px-3">目標位置</th>
+                                <th scope="col" class="py-2.5 px-3">終點平均</th>
+                                <th scope="col" class="py-2.5 px-3">理論平均</th>
+                                <th scope="col" class="py-2.5 px-3">樣本變異數</th>
+                                <th scope="col" class="py-2.5 px-3">目標到達率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <tr id="emptyHistoryRow">
+                                <td colspan="7" class="py-6 text-center text-slate-400 text-sm">
+                                    尚無模擬紀錄，請點擊上方「執行模擬」按鈕。
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Custom Chart Plugin & Core Logic -->
+    <script>
+        const controls = [
+            { sliderId: 'steps', numId: 'stepsNum', parse: parseInt, isTargetBound: true },
+            { sliderId: 'sims', numId: 'simsNum', parse: parseInt },
+            { sliderId: 'prob', numId: 'probNum', parse: parseFloat, decimals: 2 },
+            { sliderId: 'stepSize', numId: 'stepSizeNum', parse: parseFloat, decimals: 1, isTargetBound: true },
+            { sliderId: 'target', numId: 'targetNum', parse: parseFloat, decimals: 1 },
+            { sliderId: 'speed', numId: 'speedNum', parse: parseInt }
+        ];
+
+        const targetMinLbl = document.getElementById('targetMinLbl');
+        const targetMaxLbl = document.getElementById('targetMaxLbl');
+        const statMean = document.getElementById('statMean');
+        const statTheoretical = document.getElementById('statTheoretical');
+        const statVar = document.getElementById('statVar');
+        const statReach = document.getElementById('statReach');
+
+        const runSimBtn = document.getElementById('runSimBtn');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const historyTableBody = document.getElementById('historyTableBody');
+
+        const downloadChartBtn = document.getElementById('downloadChartBtn');
+        const downloadPathsCsvBtn = document.getElementById('downloadPathsCsvBtn');
+        const downloadHistoryCsvBtn = document.getElementById('downloadHistoryCsvBtn');
+        const downloadHistoryJsonBtn = document.getElementById('downloadHistoryJsonBtn');
+
+        let chart = null;
+        let experimentCount = 0;
+        let animTimer = null;
+
+        let lastSimulationData = null;
+        let historyLogs = [];
+
+        const targetLinePlugin = {
+            id: 'targetLine',
+            afterDraw: (chart) => {
+                const targetValue = parseFloat(document.getElementById('targetNum').value);
+                const yScale = chart.scales.y;
+                const xScale = chart.scales.x;
+
+                if (!yScale || !xScale || isNaN(targetValue)) return;
+
+                const yPixel = yScale.getPixelForValue(targetValue);
+                if (yPixel < yScale.top || yPixel > yScale.bottom) return;
+
+                const ctx = chart.ctx;
+                ctx.save();
+                
+                ctx.beginPath();
+                ctx.setLineDash([6, 6]);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#10b981';
+                ctx.moveTo(xScale.left, yPixel);
+                ctx.lineTo(xScale.right, yPixel);
+                ctx.stroke();
+
+                ctx.fillStyle = '#10b981';
+                ctx.font = 'bold 12px Inter, sans-serif';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(`目標: ${targetValue}`, xScale.right - 10, yPixel - 4);
+
+                ctx.restore();
+            }
+        };
+
+        function updateTargetBounds() {
+            const steps = parseInt(document.getElementById('stepsNum').value, 10) || 10;
+            const stepSize = parseFloat(document.getElementById('stepSizeNum').value) || 1.0;
+            const maxVal = Math.round(steps * stepSize * 10) / 10;
+            const minVal = -maxVal;
+
+            const targetSlider = document.getElementById('target');
+            const targetNum = document.getElementById('targetNum');
+
+            targetSlider.min = minVal;
+            targetSlider.max = maxVal;
+            targetNum.min = minVal;
+            targetNum.max = maxVal;
+
+            targetMinLbl.textContent = minVal;
+            targetMaxLbl.textContent = maxVal;
+
+            let curTarget = parseFloat(targetNum.value);
+            if (curTarget > maxVal) {
+                targetNum.value = maxVal;
+                targetSlider.value = maxVal;
+            } else if (curTarget < minVal) {
+                targetNum.value = minVal;
+                targetSlider.value = minVal;
+            }
+        }
+
+        controls.forEach(ctrl => {
+            const slider = document.getElementById(ctrl.sliderId);
+            const num = document.getElementById(ctrl.numId);
+
+            slider.addEventListener('input', () => {
+                const val = ctrl.decimals ? parseFloat(slider.value).toFixed(ctrl.decimals) : slider.value;
+                num.value = val;
+                if (ctrl.isTargetBound) updateTargetBounds();
+                if (ctrl.sliderId === 'target' && chart) chart.draw();
+            });
+
+            num.addEventListener('input', () => {
+                let val = ctrl.parse(num.value);
+                if (isNaN(val)) return;
+
+                const min = ctrl.parse(num.min);
+                const max = ctrl.parse(num.max);
+
+                if (val < min) val = min;
+                if (val > max) val = max;
+
+                slider.value = val;
+                if (ctrl.isTargetBound) updateTargetBounds();
+                if (ctrl.sliderId === 'target' && chart) chart.draw();
+            });
+
+            num.addEventListener('blur', () => {
+                let val = ctrl.parse(num.value);
+                const min = ctrl.parse(num.min);
+                const max = ctrl.parse(num.max);
+
+                if (isNaN(val) || val < min) val = min;
+                if (val > max) val = max;
+
+                num.value = ctrl.decimals ? val.toFixed(ctrl.decimals) : val;
+                slider.value = val;
+                if (ctrl.isTargetBound) updateTargetBounds();
+            });
+        });
+
+        function initChart() {
+            const ctx = document.getElementById('simChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    scales: {
+                        x: {
+                            title: { display: true, text: '步數 (Steps)', font: { size: 12 } },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y: {
+                            title: { display: true, text: '位置 (Position)', font: { size: 12 } },
+                            grid: { color: '#f1f5f9' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                },
+                plugins: [targetLinePlugin]
+            });
+        }
+
+        function runSimulation() {
+            if (animTimer) clearInterval(animTimer);
+
+            const N = parseInt(document.getElementById('stepsNum').value, 10);
+            const M = parseInt(document.getElementById('simsNum').value, 10);
+            const p = parseFloat(document.getElementById('probNum').value);
+            const dx = parseFloat(document.getElementById('stepSizeNum').value);
+            const target = parseFloat(document.getElementById('targetNum').value);
+            const speed = parseInt(document.getElementById('speedNum').value, 10);
+
+            const labels = Array.from({ length: N + 1 }, (_, i) => i);
+            const fullPaths = [];
+            const meanPath = new Array(N + 1).fill(0);
+            const endPositions = [];
+            let reachedTargetCount = 0;
+
+            for (let sim = 0; sim < M; sim++) {
+                const path = [0];
+                let pos = 0;
+                let reached = false;
+
+                for (let step = 1; step <= N; step++) {
+                    const stepVal = (Math.random() < p ? 1 : -1) * dx;
+                    pos += stepVal;
+                    path.push(Math.round(pos * 100) / 100);
+                    meanPath[step] += pos;
+
+                    if (!reached && ((target >= 0 && pos >= target) || (target < 0 && pos <= target))) {
+                        reached = true;
+                    }
+                }
+
+                if (reached) reachedTargetCount++;
+                fullPaths.push(path);
+                endPositions.push(pos);
+            }
+
+            for (let step = 0; step <= N; step++) {
+                meanPath[step] = Math.round((meanPath[step] / M) * 100) / 100;
+            }
+
+            const empiricalMean = endPositions.reduce((a, b) => a + b, 0) / M;
+            const theoreticalMean = N * (2 * p - 1) * dx;
+            const variance = endPositions.reduce((sum, val) => sum + Math.pow(val - empiricalMean, 2), 0) / (M > 1 ? M - 1 : 1);
+            const reachRate = (reachedTargetCount / M) * 100;
+
+            statMean.textContent = empiricalMean.toFixed(2);
+            statTheoretical.textContent = theoreticalMean.toFixed(2);
+            statVar.textContent = variance.toFixed(2);
+            statReach.textContent = `${reachRate.toFixed(1)}%`;
+
+            lastSimulationData = {
+                N, M, p, dx, target,
+                fullPaths,
+                meanPath
+            };
+
+            function renderFrame(currentStep) {
+                const datasets = [];
+
+                fullPaths.forEach((path) => {
+                    datasets.push({
+                        data: path.slice(0, currentStep + 1),
+                        borderColor: 'rgba(37, 99, 235, 0.25)',
+                        borderWidth: 1.2,
+                        pointRadius: 0,
+                        tension: 0,
+                        fill: false
+                    });
+                });
+
+                datasets.push({
+                    data: meanPath.slice(0, currentStep + 1),
+                    borderColor: '#f97316',
+                    borderWidth: 3.5,
+                    pointRadius: 0,
+                    tension: 0,
+                    fill: false
+                });
+
+                chart.data.labels = labels.slice(0, currentStep + 1);
+                chart.data.datasets = datasets;
+                chart.update();
+            }
+
+            if (speed > 0) {
+                let currentStep = 0;
+                animTimer = setInterval(() => {
+                    renderFrame(currentStep);
+                    currentStep++;
+                    if (currentStep > N) {
+                        clearInterval(animTimer);
+                    }
+                }, speed);
+            } else {
+                renderFrame(N);
+            }
+
+            const record = {
+                id: ++experimentCount,
+                N, M, p, dx, target,
+                empiricalMean,
+                theoreticalMean,
+                variance,
+                reachRate,
+                timestamp: new Date().toLocaleString('zh-TW')
+            };
+
+            historyLogs.push(record);
+            addHistoryRecord(record);
+        }
+
+        function addHistoryRecord(data) {
+            const emptyRow = document.getElementById('emptyHistoryRow');
+            if (emptyRow) emptyRow.remove();
+
+            const tr = document.createElement('tr');
+            tr.className = 'bg-white border-b border-slate-100 hover:bg-slate-50 transition duration-150';
+            tr.innerHTML = `
+                <td class="py-2.5 px-3 font-medium text-slate-800">#${data.id}</td>
+                <td class="py-2.5 px-3 font-mono text-xs">N:${data.N}, M:${data.M}, p:${data.p.toFixed(2)}, dx:${data.dx}</td>
+                <td class="py-2.5 px-3 font-semibold text-emerald-600">${data.target}</td>
+                <td class="py-2.5 px-3 font-semibold">${data.empiricalMean.toFixed(2)}</td>
+                <td class="py-2.5 px-3 text-slate-500">${data.theoreticalMean.toFixed(2)}</td>
+                <td class="py-2.5 px-3 text-slate-500">${data.variance.toFixed(2)}</td>
+                <td class="py-2.5 px-3">
+                    <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold ${data.reachRate > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">
+                        ${data.reachRate.toFixed(1)}%
+                    </span>
+                </td>
+            `;
+            historyTableBody.insertBefore(tr, historyTableBody.firstChild);
+        }
+
+        // --- 下載功能實作 ---
+
+        // 輔助函式：觸發檔案下載
+        function downloadFile(content, fileName, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 1. 下載圖表 PNG 圖片
+        downloadChartBtn.addEventListener('click', () => {
+            const canvas = document.getElementById('simChart');
+            
+            // 建立高解析度相容畫布帶白底
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            tempCtx.fillStyle = '#ffffff';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.drawImage(canvas, 0, 0);
+
+            const imageURI = tempCanvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = imageURI;
+            a.download = `random_walk_chart_${Date.now()}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        // 2. 下載當前實驗路徑矩陣 (CSV)
+        downloadPathsCsvBtn.addEventListener('click', () => {
+            if (!lastSimulationData) {
+                alert('尚無可下載的軌跡數據，請先執行模擬！');
+                return;
+            }
+
+            const { N, M, fullPaths, meanPath } = lastSimulationData;
+            
+            // CSV Header
+            let csvContent = '\uFEFFStep';
+            for (let i = 1; i <= M; i++) {
+                csvContent += `,Path_${i}`;
+            }
+            csvContent += ',Mean_Path\n';
+
+            // Rows
+            for (let step = 0; step <= N; step++) {
+                let row = `${step}`;
+                for (let sim = 0; sim < M; sim++) {
+                    row += `,${fullPaths[sim][step]}`;
+                }
+                row += `,${meanPath[step]}\n`;
+                csvContent += row;
+            }
+
+            downloadFile(csvContent, `trajectory_data_N${N}_M${M}.csv`, 'text/csv;charset=utf-8;');
+        });
+
+        // 3. 下載歷史紀錄 (CSV)
+        downloadHistoryCsvBtn.addEventListener('click', () => {
+            if (historyLogs.length === 0) {
+                alert('目前沒有歷史實驗紀錄！');
+                return;
+            }
+
+            let csvContent = '\uFEFF實驗編號,時間,總步數(N),模擬軌跡(M),右移機率(p),每步長度(dx),目標位置,經驗終點均值,理論期望值,樣本變異數,目標到達率(%)\n';
+
+            historyLogs.forEach(log => {
+                csvContent += `${log.id},"${log.timestamp}",${log.N},${log.M},${log.p},${log.dx},${log.target},${log.empiricalMean.toFixed(2)},${log.theoreticalMean.toFixed(2)},${log.variance.toFixed(2)},${log.reachRate.toFixed(1)}%\n`;
+            });
+
+            downloadFile(csvContent, `random_walk_history_${Date.now()}.csv`, 'text/csv;charset=utf-8;');
+        });
+
+        // 4. 下載歷史紀錄 (JSON)
+        downloadHistoryJsonBtn.addEventListener('click', () => {
+            if (historyLogs.length === 0) {
+                alert('目前沒有歷史實驗紀錄！');
+                return;
+            }
+
+            const jsonContent = JSON.stringify(historyLogs, null, 2);
+            downloadFile(jsonContent, `random_walk_history_${Date.now()}.json`, 'application/json');
+        });
+
+        clearHistoryBtn.addEventListener('click', () => {
+            experimentCount = 0;
+            historyLogs = [];
+            historyTableBody.innerHTML = `
+                <tr id="emptyHistoryRow">
+                    <td colspan="7" class="py-6 text-center text-slate-400 text-sm">
+                        尚無模擬紀錄，請點擊上方「執行模擬」按鈕。
+                    </td>
+                </tr>
+            `;
+        });
+
+        runSimBtn.addEventListener('click', runSimulation);
+
+        window.onload = function() {
+            updateTargetBounds();
+            initChart();
+            runSimulation();
+        };
+    </script>
+</body>
+</html>
